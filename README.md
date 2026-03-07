@@ -1,265 +1,271 @@
-# Anchor Rock Paper Scissor
+# ⚔ BLITZ — Sealed-Bid Battle Royale
 
-A confidential Rock Paper Scissor game built on Solana using Anchor and MagicBlock's Ephemeral Rollups SDK. This example demonstrates how to implement a two-player game with hidden choices that remain private during gameplay until the winner is revealed.
+> A confidential sealed-bid auction game on Solana Devnet, powered by MagicBlock's Trusted Execution Environment (TEE). Blitz demonstrates the **Winner's Curse** mechanic: the highest bidder wins but pays a penalty for overbidding.
 
-## Overview
+![Solana](https://img.shields.io/badge/Solana-Devnet-9945FF?logo=solana&logoColor=white)
+![Anchor](https://img.shields.io/badge/Anchor-0.32.1-blue)
+![License](https://img.shields.io/badge/License-MIT-green)
 
-This project showcases:
-- **Solana Smart Contract**: Built with Anchor framework
-- **Confidentiality**: Player choices are hidden using MagicBlock's Ephemeral Rollups
-- **On-chain Game Logic**: Automated winner determination with transparent results
-- **Permission System**: Fine-grained access control via the ephemeral rollups SDK
+---
 
-## Versioning
+## 🎮 What is BLITZ?
 
-The following software packages may be required, other versions may also be compatible:
+BLITZ is a multiplayer sealed-bid game where 2–6 players compete over 5 rounds. Each round, a mystery item with a hidden market value is revealed. Players submit **sealed bids** — kept private via MagicBlock's TEE (Trusted Execution Environment) — and the highest bidder wins the round. But winning costs: your score is `True Value − Your Bid`, so overbidding hurts you.
 
-| Software | Version | Installation Guide |
-|----------|---------|-------------------|
-| Solana | 2.3.13 | [Install Solana](https://docs.solana.com/cli/install-solana-cli-tools) |
-| Rust | 1.85.0 | [Install Rust](https://www.rust-lang.org/tools/install) |
-| Anchor | 0.32.1 | [Install Anchor](https://www.anchor-lang.com/docs/installation) |
-| Node | 24.10.0 | [Install Node](https://nodejs.org/) |
+After each round, the lowest-scoring player is **eliminated**. The last one standing claims the entire SOL pot.
 
-## Prerequisites
+### 🤖 AI Arena Mode
 
-- **Rust**: 1.85.0
-- **Node.js**: 24.10.0
-- **Solana CLI**: 2.3.13
-- **Anchor CLI**: 0.32.1
-- **Yarn**: Package manager (or npm)
+No friends online? No problem. BLITZ has a built-in **AI Arena mode** with 5 AI bots, each with a distinct personality and bidding strategy:
 
-### Installation
+| Bot | Emoji | Strategy |
+|---|---|---|
+| CRYPTOKNIGHT | 🤖 | Aggressive — overbids 5–25% above market value |
+| VOIDMAGE | 👾 | Conservative — bids 55–75% of value |
+| SHADOWROGUE | 🕹️ | Wildcard — random 20–160% of value |
+| IRONCLAD | ⚙️ | Calculated — bids close to fair value (85–105%) |
+| ORACLE | 🔮 | Adaptive — mirrors your previous bids |
 
-1. Install Rust:
+AI mode runs **entirely client-side** — instant play, no wallet or SOL required.
+
+---
+
+## 🏗 Architecture
+
+```
+blitz/
+├── programs/blitz/              # Anchor on-chain program (Rust)
+│   └── src/
+│       ├── lib.rs               # Instructions: create_game, join_game, submit_bid, resolve_round, settle_game
+│       ├── state.rs             # Game, PlayerState, RoundItem account structs
+│       └── errors.rs            # Custom error codes
+├── app/                         # React frontend (Vite + TypeScript)
+│   └── src/
+│       ├── hooks/
+│       │   ├── useBlitzGame.ts  # Polls on-chain game state (mainnet)
+│       │   ├── useBlitzActions.ts # All transaction signers
+│       │   └── useAIGame.ts     # Full client-side AI game simulation engine
+│       ├── components/
+│       │   ├── Lobby.tsx        # Game creation / AI Arena setup
+│       │   ├── BiddingRound.tsx # Bid slider, countdown, opponent status
+│       │   ├── RevealPhase.tsx  # Live bid reveal, scoring, standings
+│       │   └── GameOver.tsx     # Final results, winner, pot settlement
+│       └── utils/
+│           ├── anchor.ts        # PDA derivation helpers
+│           └── constants.ts     # Program ID, endpoints, item names
+├── tests/                       # Anchor test suite
+└── Anchor.toml
+```
+
+---
+
+## ⚙️ Game Mechanics
+
+### Winner's Curse
+The core mechanic: the round winner gets **penalized** for overbidding.
+
+```
+Score = True Market Value − Your Bid
+```
+
+- Bid **below** value → you didn't win, no score change
+- Bid **above** value in the winning round → your score **decreases**
+- The goal is to win rounds by bidding *just enough*, not more
+
+### Elimination
+After each round, the player with the **lowest total score** is eliminated. After 5 rounds (or once only 1 player survives), the game ends and the last adventurer standing claims the SOL pot.
+
+---
+
+## 🔐 TEE Confidentiality
+
+Sealed bids use MagicBlock's TEE (Trusted Execution Environment) via Ephemeral Rollups. During the bidding window:
+- Bids are encrypted at the TEE layer
+- No player (or validator) can see other players' bids before reveal
+- After the window closes, the TEE decrypts and resolves the round on-chain
+
+---
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+| Tool | Version |
+|---|---|
+| Rust | 1.85.0 |
+| Solana CLI | 2.3.13 |
+| Anchor CLI | 0.32.1 |
+| Node.js | ≥18 |
+| Yarn or npm | latest |
+
+### 1. Install Tools
+
 ```bash
+# Rust
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-```
 
-2. Install Solana CLI:
-```bash
-sh -c "$(curl -sSfL https://release.solana.com/v1.18.0/install)"
-```
+# Solana CLI
+sh -c "$(curl -sSfL https://release.solana.com/v2.3.13/install)"
 
-3. Install Anchor:
-```bash
+# Anchor via AVM
 cargo install --git https://github.com/coral-xyz/anchor avm --locked --force
-avm install latest
-avm use latest
+avm install 0.32.1
+avm use 0.32.1
 ```
 
-4. Configure Solana (optional, for devnet):
+### 2. Clone and Install
+
 ```bash
-solana config set --url devnet
+git clone https://github.com/ronkenx9/blitz-sealed-bid-royale.git
+cd blitz-sealed-bid-royale
+
+# Install root deps
+yarn install
+
+# Install frontend deps
+cd app && npm install
 ```
 
-## Project Structure
-
-```
-anchor-rock-paper-scissor/
-├── programs/
-│   └── anchor-rock-paper-scissor/
-│       ├── src/
-│       │   └── lib.rs                 # Program logic
-│       └── Cargo.toml
-├── tests/
-│   └── anchor-rock-paper-scissor.ts   # Test suite
-├── Anchor.toml                        # Anchor configuration
-├── Cargo.toml                         # Workspace configuration
-└── package.json                       # Node dependencies
-```
-
-## Build
-
-Build the Solana program:
+### 3. Build the Anchor Program
 
 ```bash
 anchor build
 ```
 
-This will:
-- Compile the Rust program
-- Generate TypeScript IDL (Interface Definition Language)
-- Output artifacts to the `target/` directory
+This compiles the Rust program and generates IDL + TypeScript types in `target/`.
 
-## Deployment
+### 4. Deploy to Devnet
 
-### Deploy to Devnet
-
-1. Set your wallet (if not already configured):
 ```bash
-solana config set --keypair ~/.config/solana/id.json
-```
+# Configure CLI for devnet
+solana config set --url devnet
 
-2. Update `Anchor.toml` with your program ID (after first deployment)
+# Airdrop SOL to your deploy wallet
+solana airdrop 2
 
-3. Deploy:
-```bash
+# Deploy
 anchor deploy --provider.cluster devnet
 ```
 
-The deployment will output your program ID. Update `Anchor.toml` and redeploy with the correct ID.
+After deployment, update `app/src/utils/constants.ts` with your new Program ID.
 
-### Deploy to Localnet
-
-Start a local Solana validator:
-```bash
-solana-test-validator
-```
-
-In another terminal, deploy:
-```bash
-anchor deploy --provider.cluster localnet
-```
-
-## Testing
-
-### Install Dependencies
+### 5. Run the Frontend
 
 ```bash
-yarn install
+cd app
+npm run dev
 ```
 
-### Run Tests
+Open [http://localhost:5173](http://localhost:5173) — switch to Devnet in your Phantom/Solflare wallet.
 
-Run the full test suite:
+---
 
-```bash
-yarn test
+## 🤖 Playing Locally (AI Arena)
+
+No Devnet setup required! Click **🤖 AI ARENA** in the header toggle to play instantly against 5 AI opponents. No wallet or SOL needed.
+
+**Flow:**
+1. Click **START AI ARENA** → bots join instantly
+2. Click **ENTER THE ARENA** → bidding phase begins
+3. Submit your bid within 10 seconds
+4. Watch bots "think" with animated statuses → auto-advance to reveal
+5. See all bids + Winner's Curse scoring
+6. Click **RESOLVE ROUND** → lowest scorer eliminated
+7. Repeat for 5 rounds → final standings
+
+---
+
+## 🌐 PvP Mode (Devnet)
+
+**Flow:**
+1. Connect Phantom or Solflare wallet (switch to **Devnet**)
+2. Click **CREATE GAME** or **JOIN GAME** 
+3. Once in, click **DELEGATE TO TEE** 
+4. Click **ENTER THE ARENA** → submit your sealed bid on-chain
+5. After bid window closes, click **RESOLVE ROUND** 
+6. After 5 rounds, settle the pot to Mainnet
+
+> **Devnet SOL faucet:** [faucet.solana.com](https://faucet.solana.com)
+
+---
+
+## 📋 Program Instructions
+
+| Instruction | Description |
+|---|---|
+| `create_game` | Initialize a new game with entry fee and game ID |
+| `join_game` | Register a player into an open game |
+| `delegate_to_tee` | Delegate game account to MagicBlock TEE validator |
+| `submit_bid` | Submit sealed bid (encrypted via TEE) |
+| `resolve_round` | Reveal bids, score players, eliminate last place |
+| `settle_game` | Transfer pot to winner, close game accounts |
+
+---
+
+## 🔧 Configuration
+
+`app/src/utils/constants.ts`:
+
+```typescript
+export const PROGRAM_ID = new PublicKey("4rBQpg3Fy8ZYYY54QQJmzjUza55ofDPnzxETV2VniYKW");
+export const MAINNET_URL = "https://api.mainnet-beta.solana.com";
+export const DEVNET_URL  = "https://api.devnet.solana.com";
+export const TEE_URL     = "https://tee.magicblock.app";
 ```
 
-The test suite includes:
-1. **Airdrop SOL** - Fund test players
-2. **Create Game** - Player 1 initiates a game
-3. **Join Game** - Player 2 joins the game
-4. **Make Choices** - Both players privately make their choices
-5. **Verify Privacy** - Confirm choices remain hidden from opponent
-6. **Reveal Winner** - Determine and announce the game winner
+---
 
-### Custom Test Endpoint
+## 🧱 Tech Stack
 
-To test against a custom ephemeral rollup endpoint:
+| Layer | Technology |
+|---|---|
+| Smart Contract | Rust + Anchor Framework |
+| TEE Confidentiality | MagicBlock Ephemeral Rollups SDK |
+| Frontend | React 18 + Vite + TypeScript |
+| Wallet | `@solana/wallet-adapter` (Phantom, Solflare) |
+| Blockchain RPC | `@solana/web3.js` |
+| AI Engine | Custom client-side simulation (`useAIGame.ts`) |
 
-```bash
-EPHEMERAL_PROVIDER_ENDPOINT=http://your-endpoint:port \
-EPHEMERAL_WS_ENDPOINT=ws://your-endpoint:port \
-yarn test
-```
+---
 
-## Usage
+## 📁 Key Files
 
-### Game Flow
+| File | Purpose |
+|---|---|
+| `programs/blitz/src/lib.rs` | All on-chain game instructions |
+| `programs/blitz/src/state.rs` | `Game`, `PlayerState`, `RoundItem` account definitions |
+| `app/src/hooks/useAIGame.ts` | Full AI game engine + 5 bot personalities |
+| `app/src/hooks/useBlitzGame.ts` | Mainnet polling for on-chain game state |
+| `app/src/hooks/useBlitzActions.ts` | Transaction builders for all game actions |
+| `app/src/utils/constants.ts` | Program ID, RPC URLs, item name registry |
 
-1. **Player 1 creates a game** with a unique game ID
-2. **Player 2 joins** the same game
-3. **Both players make hidden choices** (Rock, Paper, or Scissors)
-4. **Choices are encrypted** in the ephemeral rollup
-5. **Winner is revealed** - game logic determines the winner
-6. **Results are finalized** on-chain
+---
 
-### Example Test Output
+## 🛠 Troubleshooting
 
-```
-Program ID: <program-address>
-Game ID (u64): 1706309545000
-...
-✅ Game Created: <tx-hash>
-✅ Player 2 joined game <id>: <tx-hash>
-✅ Player 1 chose {"rock":{}}: <tx-hash>
-✅ Player 2 chose {"paper":{}}: <tx-hash>
-✅ Reveal Winner TX Sent: <tx-hash>
-🎲 Game Result Account Data: {winner: 2, player1Choice: {...}, player2Choice: {...}}
-```
+**"wallet not connected"**  
+→ Connect Phantom or Solflare and switch to Devnet
 
-## Key Concepts
+**"insufficient funds"**  
+→ Airdrop SOL from [faucet.solana.com](https://faucet.solana.com)
 
-### Ephemeral Rollups
+**"Transaction too large"**  
+→ Try again — ephemeral rollup may be warming up
 
-Player choices are processed in MagicBlock's Ephemeral Rollups, which provides:
-- **TEE Execution**: Encrypted execution environment
-- **Privacy**: Other players cannot see choices until revealed
-- **Finality**: Results are committed to Solana mainnet
+**"anchor build fails"**  
+→ Run `rustup update` and `cargo clean` then rebuild
 
-### Program Accounts
+---
 
-- **Game Account**: Stores game state and result
-- **PlayerChoice Account**: Stores a player's encrypted choice (PDAs)
-- **Permission Account**: Controls access to encrypted data
+## 🔗 References
 
-### Anchor Instructions
-
-- `create_game` - Initialize a new game
-- `join_game` - Add the second player
-- `make_choice` - Submit encrypted choice
-- `create_permission` - Setup access control
-- `delegate_pda` - Delegate PDA to TEE validator
-- `reveal_winner` - Compute and store result
-
-## Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `EPHEMERAL_PROVIDER_ENDPOINT` | `https://tee.magicblock.app` | Ephemeral rollup RPC endpoint |
-| `EPHEMERAL_WS_ENDPOINT` | `wss://tee.magicblock.app` | WebSocket endpoint for subscriptions |
-
-## Troubleshooting
-
-### Build Errors
-
-**Error: "anchor-lang not found"**
-- Run: `cargo update`
-- Ensure Rust is up to date: `rustup update`
-
-### Deployment Issues
-
-**Error: "Account does not have enough SOL"**
-- Airdrop SOL: `solana airdrop 10 <your-address> --url devnet`
-
-### Test Failures
-
-**Tests timeout or fail to connect**
-- Verify the ephemeral endpoint is reachable
-- Check your internet connection
-- Ensure the Solana cluster is available
-
-**Permission denied errors**
-- Ensure wallet has sufficient SOL for transaction fees
-- Check permission setup in test (game and choice PDAs)
-
-## Development
-
-### Modify Program Logic
-
-Edit `programs/anchor-rock-paper-scissor/src/lib.rs`:
-
-1. Update instruction handlers
-2. Run `anchor build` to compile
-3. Run `yarn test` to validate changes
-
-### Generate New Types
-
-After program changes:
-```bash
-anchor build --skip-lint
-```
-
-This regenerates TypeScript types in `target/types/`.
-
-## References
-
-- [Anchor Documentation](https://www.anchor-lang.com/)
-- [Solana Documentation](https://docs.solana.com/)
+- [Anchor Docs](https://www.anchor-lang.com/)
+- [Solana Docs](https://docs.solana.com/)
 - [MagicBlock Ephemeral Rollups SDK](https://github.com/magicblock-labs/ephemeral-rollups-sdk)
-- [Solana Web3.js](https://github.com/solana-labs/solana-web3.js)
+- [Solana Wallet Adapter](https://github.com/solana-labs/wallet-adapter)
 
-## License
+---
 
-MIT
+## 📄 License
 
-## Support
-
-For issues or questions:
-1. Check existing GitHub issues
-2. Review test logs for error details
-3. Ensure all prerequisites are installed
-4. Verify network connectivity to Solana endpoints
+MIT — built with ⚔ by [ronkenx9](https://github.com/ronkenx9)
