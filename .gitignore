@@ -17,3 +17,10 @@
 !**/anchor-minter/target/idl/
 !**/anchor-counter/target/idl/
 !**/anchor-minter/target/deploy/
+
+# Allow the app's local IDL and types for Vercel build
+!app/src/target/
+!app/src/target/idl/
+!app/src/target/idl/**
+!app/src/target/types/
+!app/src/target/types/**
