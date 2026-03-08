@@ -202,15 +202,25 @@ function GameApp() {
         </div>
 
         <div className={`screen ${phase === 'bidding' ? 'active' : ''}`}>
-          <BiddingRound setPhase={handleSetPhase} isActive={phase === 'bidding'} />
+          <BiddingRound
+            key={`bidding-${mode === 'ai' ? aiGame.currentRound : pvpGame.game?.currentRound || 0}`}
+            setPhase={handleSetPhase}
+            isActive={phase === 'bidding'}
+          />
         </div>
 
         <div className={`screen ${phase === 'reveal' ? 'active' : ''}`}>
-          <RevealPhase setPhase={handleSetPhase} />
+          <RevealPhase
+            key={`reveal-${mode === 'ai' ? aiGame.currentRound : pvpGame.game?.currentRound || 0}`}
+            setPhase={handleSetPhase}
+          />
         </div>
 
         <div className={`screen ${phase === 'gameover' ? 'active' : ''}`}>
-          <GameOver setPhase={handleSetPhase} />
+          <GameOver
+            key={`gameover-${mode === 'ai' ? aiGame.currentRound : pvpGame.game?.currentRound || 0}`}
+            setPhase={handleSetPhase}
+          />
         </div>
 
       </div>

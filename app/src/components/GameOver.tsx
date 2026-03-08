@@ -40,15 +40,15 @@ export function GameOver({ setPhase }: GameOverProps) {
                 <div className="game-over-wrap">
                     <span className="trophy">👑</span>
                     <div className="go-title">
-                        {winner?.isYou ? '✨ YOU ARE THE CHAMPION ✨' : 'DEFEAT...'}
+                        {winner?.isYou ? '✨ YOU ARE THE CHAMPION ✨' : (winner ? 'VICTORY ACHIEVED' : 'DEFEAT...')}
                     </div>
                     <div className="go-winner-name">
-                        {winner ? `${winner.emoji} ${winner.name}` : 'UNKNOWN'}
+                        {winner ? `${winner.emoji} ${winner.name}` : (rankings.length > 0 ? `${rankings[0].emoji} ${rankings[0].name}` : 'UNKNOWN')}
                     </div>
                     <div className="go-pot">
                         {winner?.isYou
                             ? '🏆 You outplayed 5 AI opponents!'
-                            : `${winner?.name || 'An AI'} claimed victory`
+                            : `${winner?.name || (rankings.length > 0 ? rankings[0].name : 'An AI')} claimed victory`
                         }
                     </div>
                 </div>
@@ -85,7 +85,7 @@ export function GameOver({ setPhase }: GameOverProps) {
                                 </div>
                                 <div className="score-avatar">{p.isEliminated ? '💀' : p.emoji}</div>
                                 <div className="score-name">{p.name} {p.isYou && '(YOU)'}</div>
-                                <div className={`score-val ${scoreVal >= 0 ? 'pos' : 'neg'}`}>{scoreStr}</div>
+                                <div className="score-val pos">{scoreStr}</div>
                                 <div className="score-bar-wrap">
                                     <div className="score-bar" style={{
                                         width: `${widthPct}%`,
@@ -149,7 +149,7 @@ export function GameOver({ setPhase }: GameOverProps) {
                 <span className="trophy">👑</span>
                 <div className="go-title">{isWinner ? '✨ YOU ARE THE CHAMPION ✨' : 'VICTORY ACHIEVED'}</div>
                 <div className="go-winner-name">
-                    {winnerKey ? `${winnerKey.toBase58().slice(0, 6)}...${winnerKey.toBase58().slice(-4)}` : 'UNKNOWN'}
+                    {winnerKey ? `${winnerKey.toBase58().slice(0, 6)}...${winnerKey.toBase58().slice(-4)}` : (rankings.length > 0 ? `${rankings[0].player.toBase58().slice(0, 6)}...` : 'UNKNOWN')}
                 </div>
                 <div className="go-pot">◎ {totalPotSol.toFixed(3)} SOL CLAIMED FROM THE VAULT</div>
             </div>
