@@ -1,0 +1,48 @@
+# Vercel Web Analytics Implementation
+
+## Summary
+Successfully implemented Vercel Web Analytics for the Blitz Sealed-Bid Battle Royale React application built with Vite.
+
+## Changes Made
+
+### 1. Package Installation
+- **Added**: `@vercel/analytics` package to dependencies
+- **Updated**: `package.json` with the new dependency
+- **Updated**: `package-lock.json` to reflect the new package installation
+
+### 2. Code Changes
+- **Modified**: `src/App.tsx`
+  - Added import statement: `import { Analytics } from '@vercel/analytics/react';`
+  - Added the `<Analytics />` component inside the main App component, placed after `<GameApp />` within the `<WalletModalProvider>` wrapper
+  - This placement ensures analytics tracking is active across all game phases and components
+
+## Implementation Details
+
+Following the Vercel Web Analytics documentation for React applications (create-react-app pattern), the Analytics component was added to the root App component. The component is a wrapper around the tracking script that provides seamless integration with React applications.
+
+### Placement Strategy
+The `<Analytics />` component was strategically placed:
+- Inside the `WalletModalProvider` to ensure it's mounted with the rest of the application
+- After the `GameApp` component to avoid interfering with the main application logic
+- Within the provider tree to maintain proper React context hierarchy
+
+## Verification
+
+1. ✅ **Build Successful**: Ran `npm run build` - build completed successfully with no errors
+2. ✅ **Dependencies Installed**: Package installed and lockfile updated correctly
+3. ✅ **No New Linting Errors**: The changes introduced no new linting errors (existing errors are pre-existing in the codebase)
+
+## Next Steps for Deployment
+
+To complete the setup:
+1. Deploy the application to Vercel using `vercel deploy`
+2. Enable Web Analytics in the Vercel dashboard (Project → Analytics tab → Enable)
+3. After deployment, verify analytics tracking by checking browser Network tab for requests to `/_vercel/insights/view`
+4. View analytics data in the Vercel dashboard under the Analytics tab
+
+## Technical Notes
+
+- The implementation follows the official Vercel Web Analytics guide for React applications
+- No route support is automatically included with this implementation, but basic page view tracking is enabled
+- The Analytics component is lightweight and won't impact application performance
+- Analytics will only track data when deployed to Vercel (not in local development by default)

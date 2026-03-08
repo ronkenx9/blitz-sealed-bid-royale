@@ -3,6 +3,7 @@ import { ConnectionProvider, WalletProvider, useWallet } from '@solana/wallet-ad
 import { WalletModalProvider, WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { PhantomWalletAdapter, SolflareWalletAdapter } from '@solana/wallet-adapter-wallets';
 import { MAINNET_URL } from './utils/constants';
+import { Analytics } from '@vercel/analytics/react';
 
 import '@solana/wallet-adapter-react-ui/styles.css';
 
@@ -242,6 +243,7 @@ function App() {
       <WalletProvider wallets={wallets} autoConnect>
         <WalletModalProvider>
           <GameApp />
+          <Analytics />
         </WalletModalProvider>
       </WalletProvider>
     </ConnectionProvider>
