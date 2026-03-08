@@ -1,19 +1,27 @@
-import { useBlitzGame } from '../hooks/useBlitzGame';
-import { useBlitzActions } from '../hooks/useBlitzActions';
-import { useAnchorWallet } from '@solana/wallet-adapter-react';
-import { useState } from 'react';
+import { useWallet, useAnchorWallet } from '@solana/wallet-adapter-react';
+import { useState, useEffect } from 'react';
+import { Connection } from '@solana/web3.js';
+import * as anchor from '@coral-xyz/anchor';
+import { Program } from '@coral-xyz/anchor';
 import { useGameMode } from '../App';
+import idl from '../target/idl/blitz.json';
+import type { Blitz } from '../target/types/blitz';
+import { getGamePda } from '../utils/anchor';
+import { TEE_URL } from '../utils/constants';
 
 interface LobbyProps {
     setPhase: (phase: string) => void;
 }
 
 export function Lobby({ setPhase }: LobbyProps) {
-    const { mode, aiGame } = useGameMode();
-    const GAME_ID_NUM = 8352204;
+    const { mode, aiGame, gameId: GAME_ID_NUM, setGameId } = useGameMode();
     const { game, allPlayers, refetch } = useBlitzGame(mode === 'pvp' ? GAME_ID_NUM.toString() : undefined);
-    const { createGame, joinGame, delegateToTee, startRound } = useBlitzActions(GAME_ID_NUM);
+    const {
+        createGame, joinGame, delegateGame, delegatePlayerState,
+        getAuthTokenCached, startRound
+    } = useBlitzActions(GAME_ID_NUM);
     const wallet = useAnchorWallet();
+    const { signMessage } = useWallet();
     const [isLoading, setIsLoading] = useState(false);
     const [statusMsg, setStatusMsg] = useState<string | null>(null);
     const [statusType, setStatusType] = useState<'success' | 'error' | 'info'>('info');
@@ -23,6 +31,15 @@ export function Lobby({ setPhase }: LobbyProps) {
         setStatusType(type);
         if (type !== 'error') setTimeout(() => setStatusMsg(null), 4000);
     };
+
+    useEffect(() => {
+        if (mode === 'pvp' && wallet && !signMessage) {
+            showStatus(
+                'Warning: your wallet may not support TEE signing. Use Phantom or Solflare for PvP.',
+                'error'
+            );
+        }
+    }, [wallet, signMessage, mode]);
 
     // ── AI MODE HANDLERS ──
     const handleCreateAI = () => {
@@ -75,21 +92,71 @@ export function Lobby({ setPhase }: LobbyProps) {
         }
     };
 
-    const handleDelegate = async () => {
+    const handleDelegateGame = async () => {
+        // Only the creator can call this.
         try {
             setIsLoading(true);
-            showStatus('Delegating to TEE...', 'info');
-            await delegateToTee();
-            const isCreator = game && wallet && game.creator.equals(wallet.publicKey);
-            if (isCreator && game.currentRound === 0) {
-                showStatus('🎲 Starting First Round (VRF)...', 'info');
-                await startRound();
+            showStatus('Delegating Game PDA to TEE...', 'info');
+            await delegateGame();
+            showStatus('Game delegated! Starting first round...', 'info');
+
+            showStatus('Requesting random item from VRF oracle...', 'info');
+            await startRound();
+
+            // Poll the TEE until roundActive flips to true.
+            showStatus('Waiting for VRF callback...', 'info');
+            const token = await getAuthTokenCached();
+            const teeConn = new Connection(
+                `${TEE_URL}?token=${token}`,
+                { commitment: 'confirmed' }
+            );
+            const teeProgram = new Program(idl as Blitz,
+                new anchor.AnchorProvider(teeConn, wallet!, { commitment: 'confirmed' })
+            );
+            const [gamePda] = getGamePda(GAME_ID_NUM);
+
+            let attempts = 0;
+            const MAX_ATTEMPTS = 25; // 25 x 300ms = 7.5 seconds max wait
+            while (attempts < MAX_ATTEMPTS) {
+                await new Promise(r => setTimeout(r, 300));
+                try {
+                    const gameAcc = await (teeProgram.account as any).game.fetch(gamePda);
+                    if (gameAcc.roundActive) {
+                        console.log(`VRF callback received after ${attempts * 300}ms`);
+                        break;
+                    }
+                } catch {
+                    // account may not be readable yet — keep waiting
+                }
+                attempts++;
             }
-            showStatus('Delegated! Entering the arena...', 'success');
-            setTimeout(() => setPhase('bidding'), 600);
+
+            if (attempts >= MAX_ATTEMPTS) {
+                showStatus('VRF oracle timed out. Try delegating again.', 'error');
+                setIsLoading(false);
+                return;
+            }
+
+            showStatus('Round 1 ready! Entering arena...', 'success');
+            setTimeout(() => setPhase('bidding'), 400);
         } catch (e: any) {
             console.error(e);
-            setPhase('bidding');
+            showStatus(`Error: ${e?.message?.slice(0, 100)}`, 'error');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleDelegatePlayerState = async () => {
+        // Every player (including creator) calls this for themselves.
+        try {
+            setIsLoading(true);
+            showStatus('Setting up your sealed bid vault...', 'info');
+            await delegatePlayerState();
+            showStatus('Ready! Waiting for creator to start...', 'success');
+        } catch (e: any) {
+            console.error(e);
+            showStatus(`Error: ${e?.message?.slice(0, 100)}`, 'error');
         } finally {
             setIsLoading(false);
         }
@@ -233,7 +300,22 @@ export function Lobby({ setPhase }: LobbyProps) {
                     <div className="corner-deco br"></div>
                     <div className="info-row">
                         <span className="info-label">GAME ID</span>
-                        <span className="info-val" style={{ fontSize: '20px', fontFamily: '"Press Start 2P"', letterSpacing: '2px' }}>#{GAME_ID_NUM.toString(16).toUpperCase()}</span>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            <input
+                                type='number'
+                                value={GAME_ID_NUM}
+                                onChange={e => setGameId(Number(e.target.value))}
+                                style={{
+                                    fontFamily: 'var(--pixel)', fontSize: '10px',
+                                    background: 'var(--panel)', color: 'var(--gold)',
+                                    border: '1px solid var(--border)', padding: '6px 8px', width: '140px',
+                                }}
+                            />
+                            <button className='btn btn-ghost' style={{ fontSize: '7px', padding: '6px 10px' }}
+                                onClick={() => setGameId(Date.now() % 1_000_000_000)}>
+                                🎲
+                            </button>
+                        </div>
                     </div>
                     <div className="info-row">
                         <span className="info-label">ENTRY FEE</span>
@@ -312,14 +394,23 @@ export function Lobby({ setPhase }: LobbyProps) {
                             </button>
                         )}
                         {gameExists && inGame && (
-                            <>
-                                <button className="btn btn-ghost" onClick={handleDelegate} disabled={isLoading}>
-                                    {isLoading ? '⏳ DELEGATING...' : '◉ DELEGATE TO TEE'}
+                            <div className='btn-row'>
+                                {/* Every player sets up their own state first */}
+                                <button className='btn btn-ghost' onClick={handleDelegatePlayerState}
+                                    disabled={isLoading}>
+                                    {isLoading ? '...' : '◉ SETUP SEALED BIDS'}
                                 </button>
-                                <button className="btn btn-primary btn-glow" onClick={() => setPhase('bidding')}>
+                                {/* Only creator sees this button */}
+                                {game && wallet && game.creator.equals(wallet.publicKey) && (
+                                    <button className='btn btn-primary' onClick={handleDelegateGame}
+                                        disabled={isLoading}>
+                                        {isLoading ? '...' : '⚔ DELEGATE & START ROUND 1'}
+                                    </button>
+                                )}
+                                <button className="btn btn-primary btn-glow" onClick={() => setPhase('bidding')} style={{ display: 'none' }}>
                                     ⚔ ENTER THE ARENA ⚔
                                 </button>
-                            </>
+                            </div>
                         )}
                     </div>
                 </div>

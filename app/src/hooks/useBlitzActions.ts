@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { useWallet, useAnchorWallet } from '@solana/wallet-adapter-react';
 import { PublicKey, SystemProgram, Transaction, Connection } from '@solana/web3.js';
 import * as anchor from '@coral-xyz/anchor';
@@ -31,6 +32,24 @@ import type { Blitz } from '../target/types/blitz';
 export function useBlitzActions(gameIdNumber: number) {
     const wallet = useAnchorWallet();
     const { signMessage } = useWallet();
+    const teeAuthTokenRef = useRef<string | null>(null);
+
+    const getAuthTokenCached = async () => {
+        if (!wallet) throw new Error('Wallet not connected');
+
+        // Guard: not all wallets support signMessage (e.g. Ledger, some mobile)
+        if (!signMessage) {
+            throw new Error(
+                'Your wallet does not support message signing, which is required ' +
+                'for TEE authentication. Please use Phantom or Solflare.'
+            );
+        }
+
+        if (teeAuthTokenRef.current) return teeAuthTokenRef.current;
+        const auth = await getAuthToken(TEE_URL, wallet.publicKey, signMessage);
+        teeAuthTokenRef.current = auth.token;
+        return auth.token;
+    };
 
     const getProgram = (connection: Connection = mainnetConnection) => {
         if (!wallet) throw new Error("Wallet not connected");
@@ -42,15 +61,11 @@ export function useBlitzActions(gameIdNumber: number) {
         if (!wallet) throw new Error("Wallet not connected");
 
         // Get Auth Token for TEE
-        const authToken = await getAuthToken(
-            TEE_URL,
-            wallet.publicKey,
-            async (message) => await signMessage!(message)
-        );
+        const token = await getAuthTokenCached();
 
-        const teeEndpoint = `${TEE_URL}?token=${authToken.token}`;
+        const teeEndpoint = `${TEE_URL}?token=${token}`;
         const teeConn = new Connection(teeEndpoint, {
-            wsEndpoint: `wss://tee.magicblock.app?token=${authToken.token}`,
+            wsEndpoint: `wss://tee.magicblock.app?token=${token}`,
             commitment: 'confirmed'
         });
 
@@ -108,42 +123,59 @@ export function useBlitzActions(gameIdNumber: number) {
         return sendAndConfirm(tx, mainnetConnection);
     };
 
-    const delegateToTee = async () => {
+    // ─── CREATOR ONLY: call once when all players have joined ───────────────────
+    const delegateGame = async () => {
         const program = getProgram();
-        const gameId = new anchor.BN(gameIdNumber);
         const [gamePda] = getGamePda(gameIdNumber);
-        const [playerStatePda] = getPlayerStatePda(gameIdNumber, wallet!.publicKey);
         const validator = new PublicKey(TEE_VALIDATOR);
-        const permissionPda = getPermissionPda(playerStatePda);
 
-        console.log("Starting delegation process...");
-
-        // 1. Delegate Game PDA
+        // 1a. Delegate the Game PDA (creator only — Rust enforces this)
         const tx1 = await program.methods.delegateGame()
             .accounts({
                 payer: wallet!.publicKey,
                 validator,
                 game: gamePda,
-                // These are derived by Anchor if IDL is correct, but let's be safe
-                bufferGame: PublicKey.findProgramAddressSync([Buffer.from("buffer"), gamePda.toBuffer()], new PublicKey(DELEGATION_PROGRAM_ID))[0],
-                delegationRecordGame: PublicKey.findProgramAddressSync([Buffer.from("delegation"), gamePda.toBuffer()], new PublicKey(DELEGATION_PROGRAM_ID))[0],
-                delegationMetadataGame: PublicKey.findProgramAddressSync([Buffer.from("delegation-metadata"), gamePda.toBuffer()], new PublicKey(DELEGATION_PROGRAM_ID))[0],
+                bufferGame: PublicKey.findProgramAddressSync(
+                    [Buffer.from('buffer'), gamePda.toBuffer()],
+                    new PublicKey(DELEGATION_PROGRAM_ID))[0],
+                delegationRecordGame: PublicKey.findProgramAddressSync(
+                    [Buffer.from('delegation'), gamePda.toBuffer()],
+                    new PublicKey(DELEGATION_PROGRAM_ID))[0],
+                delegationMetadataGame: PublicKey.findProgramAddressSync(
+                    [Buffer.from('delegation-metadata'), gamePda.toBuffer()],
+                    new PublicKey(DELEGATION_PROGRAM_ID))[0],
                 ownerProgram: BLITZ_PROGRAM_ID,
                 delegationProgram: new PublicKey(DELEGATION_PROGRAM_ID),
                 systemProgram: SystemProgram.programId,
             } as any)
             .transaction();
         await sendAndConfirm(tx1, mainnetConnection);
+        console.log('Game PDA delegated to TEE');
+    };
 
-        // 2. Delegate PlayerState PDA
+    // ─── ALL PLAYERS: each player calls this for themselves ──────────────────────
+    const delegatePlayerState = async () => {
+        const program = getProgram();
+        const gameId = new anchor.BN(gameIdNumber);
+        const [playerStatePda] = getPlayerStatePda(gameIdNumber, wallet!.publicKey);
+        const permissionPda = getPermissionPda(playerStatePda);
+        const validator = new PublicKey(TEE_VALIDATOR);
+
+        // 2a. Delegate this player's PlayerState PDA
         const tx2 = await program.methods.delegatePlayerState(gameId)
             .accounts({
                 payer: wallet!.publicKey,
                 validator,
                 playerState: playerStatePda,
-                bufferPlayerState: PublicKey.findProgramAddressSync([Buffer.from("buffer"), playerStatePda.toBuffer()], new PublicKey(DELEGATION_PROGRAM_ID))[0],
-                delegationRecordPlayerState: PublicKey.findProgramAddressSync([Buffer.from("delegation"), playerStatePda.toBuffer()], new PublicKey(DELEGATION_PROGRAM_ID))[0],
-                delegationMetadataPlayerState: PublicKey.findProgramAddressSync([Buffer.from("delegation-metadata"), playerStatePda.toBuffer()], new PublicKey(DELEGATION_PROGRAM_ID))[0],
+                bufferPlayerState: PublicKey.findProgramAddressSync(
+                    [Buffer.from('buffer'), playerStatePda.toBuffer()],
+                    new PublicKey(DELEGATION_PROGRAM_ID))[0],
+                delegationRecordPlayerState: PublicKey.findProgramAddressSync(
+                    [Buffer.from('delegation'), playerStatePda.toBuffer()],
+                    new PublicKey(DELEGATION_PROGRAM_ID))[0],
+                delegationMetadataPlayerState: PublicKey.findProgramAddressSync(
+                    [Buffer.from('delegation-metadata'), playerStatePda.toBuffer()],
+                    new PublicKey(DELEGATION_PROGRAM_ID))[0],
                 ownerProgram: BLITZ_PROGRAM_ID,
                 delegationProgram: new PublicKey(DELEGATION_PROGRAM_ID),
                 systemProgram: SystemProgram.programId,
@@ -151,7 +183,7 @@ export function useBlitzActions(gameIdNumber: number) {
             .transaction();
         await sendAndConfirm(tx2, mainnetConnection);
 
-        // 3. Create Bid Permission (PER)
+        // 2b. Set up PER access control for this player's sealed bids
         const tx3 = await program.methods.createBidPermission(gameId)
             .accounts({
                 playerState: playerStatePda,
@@ -163,9 +195,9 @@ export function useBlitzActions(gameIdNumber: number) {
             .transaction();
         await sendAndConfirm(tx3, mainnetConnection);
 
-        // Wait for permission to be active on TEE
+        // 2c. Block until TEE acknowledges the permission is active
         await waitUntilPermissionActive(TEE_URL, playerStatePda);
-        console.log("Delegation and PER setup complete.");
+        console.log('PlayerState delegated and PER permission active');
     };
 
     const startRound = async (clientSeed: number = Math.floor(Math.random() * 255)) => {
@@ -214,7 +246,7 @@ export function useBlitzActions(gameIdNumber: number) {
         const gameId = new anchor.BN(gameIdNumber);
         const [gamePda] = getGamePda(gameIdNumber);
 
-        const gameAcc = await program.account.game.fetch(gamePda);
+        const gameAcc = await (program.account as any).game.fetch(gamePda);
         const [roundItemPda] = getRoundItemPda(gameIdNumber, gameAcc.currentRound);
 
         // Prepare remaining accounts (all player states)
@@ -240,31 +272,39 @@ export function useBlitzActions(gameIdNumber: number) {
 
     const revealRoundBids = async () => {
         const program = await getTeeProgram();
+        const teeConn = program.provider.connection as Connection;
+        const gameId = new anchor.BN(gameIdNumber);
         const [gamePda] = getGamePda(gameIdNumber);
-        const gameAcc = await program.account.game.fetch(gamePda);
 
-        // We reveal by updating permissions to public for all player states
-        for (const playerPubkey of gameAcc.players) {
-            if (playerPubkey.equals(PublicKey.default)) continue;
+        const gameAcc = await (program.account as any).game.fetch(gamePda);
 
-            const [playerStatePda] = getPlayerStatePda(gameIdNumber, playerPubkey);
-            const permissionPda = getPermissionPda(playerStatePda);
+        // Build the list of all active (non-default) player state PDAs
+        const playerStatePdas = gameAcc.players
+            .filter((pk: PublicKey) => !pk.equals(PublicKey.default))
+            .map((pk: PublicKey) => ({
+                pubkey: getPlayerStatePda(gameIdNumber, pk)[0],
+                isSigner: false,
+                isWritable: true,
+            }));
 
-            const tx = await program.methods.revealRoundPermissions(new anchor.BN(gameIdNumber))
-                .accounts({
-                    permission: permissionPda,
-                    permissionProgram: new PublicKey(PERMISSION_PROGRAM_ID),
-                    payer: wallet!.publicKey,
-                } as any)
-                .remainingAccounts([{
-                    pubkey: playerStatePda,
-                    isSigner: false,
-                    isWritable: true
-                }])
-                .transaction();
+        // The permission PDA for the first player (used as the primary account).
+        // All player state accounts are passed as remainingAccounts.
+        const firstPlayerPda = playerStatePdas[0]?.pubkey;
+        if (!firstPlayerPda) throw new Error('No players found in game');
+        const permissionPda = getPermissionPda(firstPlayerPda);
 
-            await sendAndConfirm(tx, program.provider.connection as Connection);
-        }
+        // Single transaction — all players revealed atomically
+        const tx = await program.methods
+            .revealRoundPermissions(gameId)
+            .accounts({
+                permission: permissionPda,
+                permissionProgram: new PublicKey(PERMISSION_PROGRAM_ID),
+                payer: wallet!.publicKey,
+            } as any)
+            .remainingAccounts(playerStatePdas)
+            .transaction();
+
+        return sendAndConfirm(tx, teeConn);
     };
 
     const settleGame = async () => {
@@ -293,7 +333,9 @@ export function useBlitzActions(gameIdNumber: number) {
     return {
         createGame,
         joinGame,
-        delegateToTee,
+        delegateGame,
+        delegatePlayerState,
+        getAuthTokenCached,
         startRound,
         submitBid,
         resolveRound,

@@ -10,8 +10,7 @@ interface RevealPhaseProps {
 }
 
 export function RevealPhase({ setPhase }: RevealPhaseProps) {
-    const { mode, aiGame } = useGameMode();
-    const GAME_ID_NUM = 8352204;
+    const { mode, aiGame, gameId: GAME_ID_NUM } = useGameMode();
     const pvpGame = useBlitzGame(mode === 'pvp' ? GAME_ID_NUM.toString() : undefined);
     const {
         resolveRound: resolveRoundTx,
@@ -156,13 +155,39 @@ export function RevealPhase({ setPhase }: RevealPhaseProps) {
     // ── PVP MODE ──
     const { game, allPlayers, roundItem, refetch } = pvpGame;
 
+    // Add a retry wrapper for resolveRound
+    const resolveWithRetry = async (maxAttempts = 6) => {
+        for (let attempt = 0; attempt < maxAttempts; attempt++) {
+            try {
+                return await resolveRoundTx();
+            } catch (e: any) {
+                const msg = e?.message || '';
+                const isTooEarly = msg.includes('BiddingWindowOpen')
+                    || msg.includes('0x' + (6007).toString(16)); // Anchor error code
+                if (isTooEarly && attempt < maxAttempts - 1) {
+                    setStatusMsg(`Waiting for bid window to close... (${attempt + 1}/${maxAttempts})`);
+                    await new Promise(r => setTimeout(r, 1500));
+                    continue;
+                }
+                throw e; // not a timing error, propagate
+            }
+        }
+    };
+
     const handleNextPhase = async () => {
         try {
             setIsLoading(true);
             setStatusMsg('⏳ Revealing sealed bids...');
             await revealRoundBidsTx();
+
             setStatusMsg('⏳ Resolving round on TEE...');
-            await resolveRoundTx();
+            await resolveWithRetry();
+
+            // resolveRound() triggers commit_and_undelegate which writes back to mainnet.
+            // Wait for the committed state to propagate before reading it.
+            setStatusMsg('⏳ Committing results to mainnet...');
+            await new Promise(r => setTimeout(r, 3500));
+
             setStatusMsg('✅ Round resolved!');
             await refetch();
             if (game && (game.currentRound >= 5 || allPlayers.filter(p => !p.isEliminated).length <= 1)) {

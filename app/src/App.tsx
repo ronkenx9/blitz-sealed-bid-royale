@@ -21,6 +21,8 @@ type GameModeCtx = {
   mode: GameMode;
   setMode: (m: GameMode) => void;
   aiGame: ReturnType<typeof useAIGame>;
+  gameId: number;
+  setGameId: (id: number) => void;
 };
 export const GameModeContext = createContext<GameModeCtx>(null as any);
 export const useGameMode = () => useContext(GameModeContext);
@@ -88,6 +90,7 @@ function GameApp() {
   const [phase, setPhase] = useState<Phase>('lobby');
   const [highestPhase, setHighestPhase] = useState<number>(0);
   const [mode, setMode] = useState<GameMode>('ai'); // Default to AI for instant play
+  const [gameId, setGameId] = useState<number>(Date.now() % 1_000_000_000);
   const aiGame = useAIGame();
 
   const handleSetPhase = useCallback((newPhase: string) => {
@@ -96,7 +99,10 @@ function GameApp() {
 
     setPhase(newPhase as Phase);
 
+    // Update highestPhase, but if we move back to bidding, 
+    // we lock subsequent phases until reveal is triggered.
     setHighestPhase(prev => {
+      if (newPhase === 'bidding') return 1;
       if (idx > prev) {
         playPing();
         return idx;
@@ -121,7 +127,7 @@ function GameApp() {
   ];
 
   return (
-    <GameModeContext.Provider value={{ mode, setMode, aiGame }}>
+    <GameModeContext.Provider value={{ mode, setMode, aiGame, gameId, setGameId }}>
       <Embers />
       <div className="app">
 

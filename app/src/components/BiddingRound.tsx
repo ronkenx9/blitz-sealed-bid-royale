@@ -9,13 +9,13 @@ interface BiddingRoundProps {
 }
 
 export function BiddingRound({ setPhase, isActive }: BiddingRoundProps) {
-    const { mode, aiGame } = useGameMode();
+    const { mode, aiGame, gameId: GAME_ID_NUM } = useGameMode();
     const [timeLeft, setTimeLeft] = useState(10);
     const [lamports, setLamports] = useState(50000000);
     const [hasBid, setHasBid] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [botStatuses, setBotStatuses] = useState<Record<string, boolean>>({});
-    const { submitBid: submitBidTx } = useBlitzActions(8352204);
+    const { submitBid: submitBidTx } = useBlitzActions(GAME_ID_NUM);
 
     useEffect(() => {
         if (!isActive) return;

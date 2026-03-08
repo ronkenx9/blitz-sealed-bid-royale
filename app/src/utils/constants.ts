@@ -8,8 +8,12 @@ export const VRF_DEFAULT_QUEUE = "Cuj97ggrhhidhbu39TijNVqE74xvKJ69gDervRUXAxGh";
 export const VRF_PROGRAM_IDENTITY = "9irBy75QS2BN81FUgXuHcjqceJJRuc9oDkAe8TKVvvAw";
 export const VRF_PROGRAM_ID = "Vrf1RNUjXmQGjmQrQLvJHs9SNkvDJEsRVFPkfSQUwGz";
 export const DELEGATION_PROGRAM_ID = "DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh";
-export const MAGIC_PROGRAM_ID = "Magic11111111111111111111111111111111111111";
-export const MAGIC_CONTEXT_ID = "MagicContext1111111111111111111111111111111";
+import {
+    MAGIC_PROGRAM_ID,
+    MAGIC_CONTEXT_ID,
+} from '@magicblock-labs/ephemeral-rollups-sdk';
+
+export { MAGIC_PROGRAM_ID, MAGIC_CONTEXT_ID };
 
 export const ITEM_NAMES = [
     "⚡ Thunder Shard",

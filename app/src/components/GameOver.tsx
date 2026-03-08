@@ -9,8 +9,7 @@ interface GameOverProps {
 }
 
 export function GameOver({ setPhase }: GameOverProps) {
-    const { mode, aiGame } = useGameMode();
-    const GAME_ID_NUM = 8352204;
+    const { mode, aiGame, gameId: GAME_ID_NUM } = useGameMode();
     const pvpGame = useBlitzGame(mode === 'pvp' ? GAME_ID_NUM.toString() : undefined);
     const { settleGame } = useBlitzActions(GAME_ID_NUM);
     const wallet = useAnchorWallet();
