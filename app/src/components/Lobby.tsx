@@ -4,6 +4,8 @@ import { Connection } from '@solana/web3.js';
 import * as anchor from '@coral-xyz/anchor';
 import { Program } from '@coral-xyz/anchor';
 import { useGameMode } from '../App';
+import { useBlitzGame } from '../hooks/useBlitzGame';
+import { useBlitzActions } from '../hooks/useBlitzActions';
 import idl from '../target/idl/blitz.json';
 import type { Blitz } from '../target/types/blitz';
 import { getGamePda } from '../utils/anchor';
@@ -69,7 +71,7 @@ export function Lobby({ setPhase }: LobbyProps) {
             } else if (msg.includes('User rejected')) {
                 showStatus('Transaction cancelled by user.', 'error');
             } else {
-                showStatus(`Error: ${msg.slice(0, 100)}`, 'error');
+                showStatus(`Error: ${msg.slice(0, 100)} `, 'error');
             }
         } finally {
             setIsLoading(false);
@@ -86,7 +88,7 @@ export function Lobby({ setPhase }: LobbyProps) {
             await refetch();
         } catch (e: any) {
             console.error(e);
-            showStatus(`Join failed: ${(e?.message || 'Unknown').slice(0, 80)}`, 'error');
+            showStatus(`Join failed: ${(e?.message || 'Unknown').slice(0, 80)} `, 'error');
         } finally {
             setIsLoading(false);
         }
@@ -107,7 +109,7 @@ export function Lobby({ setPhase }: LobbyProps) {
             showStatus('Waiting for VRF callback...', 'info');
             const token = await getAuthTokenCached();
             const teeConn = new Connection(
-                `${TEE_URL}?token=${token}`,
+                `${TEE_URL}?token = ${token} `,
                 { commitment: 'confirmed' }
             );
             const teeProgram = new Program(idl as Blitz,
@@ -122,7 +124,7 @@ export function Lobby({ setPhase }: LobbyProps) {
                 try {
                     const gameAcc = await (teeProgram.account as any).game.fetch(gamePda);
                     if (gameAcc.roundActive) {
-                        console.log(`VRF callback received after ${attempts * 300}ms`);
+                        console.log(`VRF callback received after ${attempts * 300} ms`);
                         break;
                     }
                 } catch {
@@ -141,7 +143,7 @@ export function Lobby({ setPhase }: LobbyProps) {
             setTimeout(() => setPhase('bidding'), 400);
         } catch (e: any) {
             console.error(e);
-            showStatus(`Error: ${e?.message?.slice(0, 100)}`, 'error');
+            showStatus(`Error: ${e?.message?.slice(0, 100)} `, 'error');
         } finally {
             setIsLoading(false);
         }
@@ -156,7 +158,7 @@ export function Lobby({ setPhase }: LobbyProps) {
             showStatus('Ready! Waiting for creator to start...', 'success');
         } catch (e: any) {
             console.error(e);
-            showStatus(`Error: ${e?.message?.slice(0, 100)}`, 'error');
+            showStatus(`Error: ${e?.message?.slice(0, 100)} `, 'error');
         } finally {
             setIsLoading(false);
         }
@@ -169,7 +171,7 @@ export function Lobby({ setPhase }: LobbyProps) {
                 <div className="section-title">🤖 AI ARENA</div>
 
                 {statusMsg && (
-                    <div className={`status-toast ${statusType}`} onClick={() => setStatusMsg(null)}>
+                    <div className={`status - toast ${statusType} `} onClick={() => setStatusMsg(null)}>
                         {statusType === 'success' && '✅ '}
                         {statusType === 'error' && '❌ '}
                         {statusType === 'info' && '⏳ '}
@@ -231,7 +233,7 @@ export function Lobby({ setPhase }: LobbyProps) {
                         <div className="player-slots">
                             {aiGame.players.length > 0 ? (
                                 aiGame.players.map((p, i) => (
-                                    <div key={i} className={`player-slot filled ${p.isYou ? 'you' : 'ai-slot'}`} style={{ position: 'relative' }}>
+                                    <div key={i} className={`player - slot filled ${p.isYou ? 'you' : 'ai-slot'} `} style={{ position: 'relative' }}>
                                         {p.isYou && <><div className="corner-deco tl"></div><div className="corner-deco br"></div></>}
                                         <div className="slot-emoji">{p.emoji}</div>
                                         <div className="slot-name">{p.name}</div>
@@ -284,7 +286,7 @@ export function Lobby({ setPhase }: LobbyProps) {
             <div className="section-title">⚔ GAME CHAMBER</div>
 
             {statusMsg && (
-                <div className={`status-toast ${statusType}`} onClick={() => setStatusMsg(null)}>
+                <div className={`status - toast ${statusType} `} onClick={() => setStatusMsg(null)}>
                     {statusType === 'success' && '✅ '}
                     {statusType === 'error' && '❌ '}
                     {statusType === 'info' && '⏳ '}
@@ -364,7 +366,7 @@ export function Lobby({ setPhase }: LobbyProps) {
                             if (p) {
                                 const isYou = wallet && p.player.equals(wallet.publicKey);
                                 return (
-                                    <div key={i} className={`player-slot filled ${isYou ? 'you' : ''}`} style={{ position: 'relative' }}>
+                                    <div key={i} className={`player - slot filled ${isYou ? 'you' : ''} `} style={{ position: 'relative' }}>
                                         {isYou && <><div className="corner-deco tl"></div><div className="corner-deco br"></div></>}
                                         <div className="slot-name">Player {i + 1}</div>
                                         <div className="slot-addr">{p.player.toBase58().substring(0, 5)}...{p.player.toBase58().slice(-4)}</div>
