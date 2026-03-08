@@ -181,15 +181,20 @@ function GameApp() {
         {/* NAV TABS */}
         <nav className="nav-tabs">
           {phaseLabels.map((tab, idx) => {
-            const isLocked = idx > highestPhase;
+            const currentIdx = PHASE_ORDER.indexOf(phase);
+            const isLocked = idx > highestPhase || (phase !== tab.key && idx < currentIdx); // Cannot go back to previous phases
             const isActive = phase === tab.key;
+
+            // Special case: During Reveal, Bidding is strictly locked
+            const forceDisable = (phase === 'reveal' && tab.key === 'bidding');
+
             return (
               <button
                 key={tab.key}
-                className={`tab-btn ${isActive ? 'active' : ''} ${isLocked ? 'locked' : ''}`}
-                onClick={() => !isLocked && setPhase(tab.key as Phase)}
-                disabled={isLocked}
-                title={isLocked ? 'Complete previous phase to unlock' : ''}
+                className={`tab-btn ${isActive ? 'active' : ''} ${isLocked || forceDisable ? 'locked' : ''}`}
+                onClick={() => !(isLocked || forceDisable) && setPhase(tab.key as Phase)}
+                disabled={isLocked || forceDisable}
+                title={isLocked || forceDisable ? 'Navigation restricted during active round' : ''}
               >
                 <span className="tab-step">{tab.step}</span>
                 {isLocked ? '🔒' : tab.icon} {tab.label}
