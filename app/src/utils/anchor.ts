@@ -1,6 +1,6 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Connection, PublicKey } from "@solana/web3.js";
-import { PROGRAM_ID, TEE_URL, MAINNET_URL } from "./constants";
+import { PROGRAM_ID, TEE_URL, MAINNET_URL, PERMISSION_PROGRAM_ID } from "./constants";
 
 export const mainnetConnection = new Connection(MAINNET_URL, "confirmed");
 
@@ -45,4 +45,12 @@ export function getRoundItemPda(gameId: number, round: number): [PublicKey, numb
         ],
         BLITZ_PROGRAM_ID
     );
+}
+
+export function getPermissionPda(account: PublicKey): PublicKey {
+    const [pda] = PublicKey.findProgramAddressSync(
+        [Buffer.from("permission"), account.toBuffer()],
+        new PublicKey(PERMISSION_PROGRAM_ID)
+    );
+    return pda;
 }

@@ -13,7 +13,10 @@ export function RevealPhase({ setPhase }: RevealPhaseProps) {
     const { mode, aiGame } = useGameMode();
     const GAME_ID_NUM = 8352204;
     const pvpGame = useBlitzGame(mode === 'pvp' ? GAME_ID_NUM.toString() : undefined);
-    const { resolveRound: resolveRoundTx } = useBlitzActions(GAME_ID_NUM);
+    const {
+        resolveRound: resolveRoundTx,
+        revealRoundBids: revealRoundBidsTx
+    } = useBlitzActions(GAME_ID_NUM);
     const wallet = useAnchorWallet();
     const [isLoading, setIsLoading] = useState(false);
     const [statusMsg, setStatusMsg] = useState<string | null>(null);
@@ -156,6 +159,8 @@ export function RevealPhase({ setPhase }: RevealPhaseProps) {
     const handleNextPhase = async () => {
         try {
             setIsLoading(true);
+            setStatusMsg('⏳ Revealing sealed bids...');
+            await revealRoundBidsTx();
             setStatusMsg('⏳ Resolving round on TEE...');
             await resolveRoundTx();
             setStatusMsg('✅ Round resolved!');

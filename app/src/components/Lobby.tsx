@@ -12,7 +12,7 @@ export function Lobby({ setPhase }: LobbyProps) {
     const { mode, aiGame } = useGameMode();
     const GAME_ID_NUM = 8352204;
     const { game, allPlayers, refetch } = useBlitzGame(mode === 'pvp' ? GAME_ID_NUM.toString() : undefined);
-    const { createGame, joinGame, delegateToTee } = useBlitzActions(GAME_ID_NUM);
+    const { createGame, joinGame, delegateToTee, startRound } = useBlitzActions(GAME_ID_NUM);
     const wallet = useAnchorWallet();
     const [isLoading, setIsLoading] = useState(false);
     const [statusMsg, setStatusMsg] = useState<string | null>(null);
@@ -80,6 +80,11 @@ export function Lobby({ setPhase }: LobbyProps) {
             setIsLoading(true);
             showStatus('Delegating to TEE...', 'info');
             await delegateToTee();
+            const isCreator = game && wallet && game.creator.equals(wallet.publicKey);
+            if (isCreator && game.currentRound === 0) {
+                showStatus('🎲 Starting First Round (VRF)...', 'info');
+                await startRound();
+            }
             showStatus('Delegated! Entering the arena...', 'success');
             setTimeout(() => setPhase('bidding'), 600);
         } catch (e: any) {
