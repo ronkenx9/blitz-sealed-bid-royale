@@ -29,6 +29,12 @@ export function BiddingRound({ setPhase, isActive }: BiddingRoundProps) {
             if (timeLeft === 0 && !hasBid) {
                 // Time Expired - Force 0 Bid
                 submitBid(0);
+
+                // Auto-advance to reveal after 2s for "Arcade Tempo"
+                const autoAdvance = setTimeout(() => {
+                    setPhase('reveal');
+                }, 2000);
+                return () => clearTimeout(autoAdvance);
             }
             return;
         }
