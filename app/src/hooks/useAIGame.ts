@@ -207,12 +207,40 @@ export function useAIGame() {
             }
         }
 
-        // Apply Winner's Curse to the winner
-        if (highestIdx >= 0) {
-            const delta = tv - highestBid; // Can be negative (penalty)
-            updated[highestIdx] = {
-                ...updated[highestIdx],
-                score: updated[highestIdx].score + delta,
+        // Calculation for all active players
+        for (let i = 0; i < updated.length; i++) {
+            if (updated[i].isEliminated) continue;
+
+            const p = updated[i];
+            let roundScore = 0;
+
+            // 1. Accuracy Bonus (Up to 5,000 pts)
+            if (p.currentBid > 0) {
+                const diff = Math.abs(tv - p.currentBid);
+                const accuracy = Math.max(0, 1 - diff / tv);
+                roundScore += Math.floor(accuracy * 5000);
+            } else {
+                // Zero bid penalty
+                roundScore -= 2000;
+            }
+
+            // 2. Winner Bonus (+10,000 pts)
+            if (i === highestIdx) {
+                roundScore += 10000;
+
+                // 3. Profit Multiplier (2x if you didn't overpay)
+                if (p.currentBid <= tv) {
+                    roundScore *= 2;
+                } else {
+                    // Winner's Curse Penalty (subtract the overage from points)
+                    const penalty = Math.floor((p.currentBid - tv) / 1000);
+                    roundScore = Math.max(0, roundScore - penalty);
+                }
+            }
+
+            updated[i] = {
+                ...p,
+                score: p.score + roundScore
             };
         }
 

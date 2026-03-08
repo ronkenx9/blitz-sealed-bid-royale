@@ -25,7 +25,13 @@ export function BiddingRound({ setPhase, isActive }: BiddingRoundProps) {
     }, [isActive]);
 
     useEffect(() => {
-        if (!isActive || timeLeft <= 0 || hasBid) return;
+        if (!isActive || timeLeft <= 0 || hasBid) {
+            if (timeLeft === 0 && !hasBid) {
+                // Time Expired - Force 0 Bid
+                submitBid(0);
+            }
+            return;
+        }
         const timer = setInterval(() => setTimeLeft((t) => t - 1), 1000);
         return () => clearInterval(timer);
     }, [isActive, timeLeft, hasBid]);
@@ -60,9 +66,11 @@ export function BiddingRound({ setPhase, isActive }: BiddingRoundProps) {
 
     const setBid = (val: number) => setLamports(val);
 
-    const submitBid = async () => {
+    const submitBid = async (bidAmount?: number) => {
+        const finalBid = bidAmount !== undefined ? bidAmount : lamports;
+
         if (mode === 'ai') {
-            aiGame.submitPlayerBid(lamports);
+            aiGame.submitPlayerBid(finalBid);
             setHasBid(true);
             return;
         }
@@ -70,7 +78,7 @@ export function BiddingRound({ setPhase, isActive }: BiddingRoundProps) {
         // PvP mode
         try {
             setIsLoading(true);
-            await submitBidTx(lamports);
+            await submitBidTx(finalBid);
             setHasBid(true);
         } catch (e) {
             console.error(e);
@@ -98,10 +106,10 @@ export function BiddingRound({ setPhase, isActive }: BiddingRoundProps) {
             <div className="round-header">
                 <div className="round-badge">⚔ ROUND {currentRound} / {totalRounds}</div>
                 <div className="countdown-wrap">
-                    <div className="countdown-label">TIME TO BID</div>
+                    <div className="countdown-label">{timeLeft > 0 ? 'TIME TO BID' : 'TIME EXPIRED!'}</div>
                     <div className="countdown-bar-outer">
-                        <div className="countdown-bar-inner" id="cbar" style={{ animation: isActive && !hasBid ? 'drainBar 10s linear forwards' : 'none', width: hasBid || timeLeft === 0 ? '0%' : undefined }}></div>
-                        <div className="countdown-num" id="cnum">{timeLeft}</div>
+                        <div className="countdown-bar-inner" id="cbar" style={{ animation: isActive && !hasBid ? 'drainBar 10s linear forwards' : 'none', width: hasBid || timeLeft === 0 ? '0%' : undefined, background: timeLeft <= 3 ? 'var(--crimson)' : undefined }}></div>
+                        <div className="countdown-num" id="cnum" style={{ color: timeLeft <= 3 ? '#ff4d6d' : undefined }}>{timeLeft}</div>
                     </div>
                 </div>
             </div>
@@ -156,8 +164,13 @@ export function BiddingRound({ setPhase, isActive }: BiddingRoundProps) {
                             </div>
                         </div>
 
-                        <button className="btn btn-primary btn-glow" onClick={submitBid} disabled={isLoading} style={{ width: '100%' }}>
-                            {isLoading ? '⏳ SUBMITTING...' : '🔐 SEAL & SUBMIT BID'}
+                        <button
+                            className={`btn ${timeLeft <= 0 ? 'btn-ghost' : 'btn-primary btn-glow'}`}
+                            onClick={() => timeLeft > 0 && submitBid()}
+                            disabled={isLoading || timeLeft <= 0}
+                            style={{ width: '100%' }}
+                        >
+                            {timeLeft <= 0 ? '❌ TIME EXPIRED' : (isLoading ? '⏳ SUBMITTING...' : '🔐 SEAL & SUBMIT BID')}
                         </button>
                     </div>
                 ) : (
