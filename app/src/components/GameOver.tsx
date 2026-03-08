@@ -60,7 +60,7 @@ export function GameOver({ setPhase }: GameOverProps) {
                     </div>
                     <div className="stat-box">
                         <div className="stat-val" style={{ color: 'var(--green)' }}>
-                            {winner ? `${winner.score > 0 ? '+' : ''}${winner.score.toLocaleString()}` : '—'}
+                            {winner ? `${(winner.score / 1e9) > 0 ? '+' : ''}${(winner.score / 1e9).toFixed(3)}` : '—'}
                         </div>
                         <div className="stat-label">WINNER SCORE</div>
                     </div>
@@ -73,8 +73,8 @@ export function GameOver({ setPhase }: GameOverProps) {
                 <div className="section-title">⚔ FINAL STANDINGS</div>
                 <div className="final-scores">
                     {rankings.map((p, idx) => {
-                        const scoreVal = p.score;
-                        const scoreStr = `${scoreVal > 0 ? '+' : ''}${scoreVal.toLocaleString()}`;
+                        const scoreVal = p.score / 1e9;
+                        const scoreStr = `${scoreVal > 0 ? '+' : ''}${scoreVal.toFixed(3)}`;
                         let widthPct = Math.max(5, (Math.abs(p.score) / highestScore) * 100);
                         if (p.isEliminated) widthPct = 0;
 

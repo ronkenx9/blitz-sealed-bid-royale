@@ -92,8 +92,8 @@ export function RevealPhase({ setPhase }: RevealPhaseProps) {
                             deltaStr = "— (outbid)";
                         }
 
-                        const scoreVal = p.score;
-                        const scoreStr = `${scoreVal > 0 ? '+' : ''}${scoreVal.toLocaleString()}`;
+                        const scoreVal = p.score / 1e9;
+                        const scoreStr = `${scoreVal > 0 ? '+' : ''}${scoreVal.toFixed(3)}`;
                         const scoreColor = scoreVal >= 0 ? 'var(--green)' : 'var(--crimson)';
 
                         return (
@@ -118,8 +118,8 @@ export function RevealPhase({ setPhase }: RevealPhaseProps) {
                 <div className="section-title" style={{ marginTop: '32px' }}>⚔ STANDINGS</div>
                 <div style={{ maxWidth: '520px' }}>
                     {rankings.map((p, idx) => {
-                        const scoreVal = p.score;
-                        const scoreStr = `${scoreVal > 0 ? '+' : ''}${scoreVal.toLocaleString()}`;
+                        const scoreVal = p.score / 1e9;
+                        const scoreStr = `${scoreVal > 0 ? '+' : ''}${scoreVal.toFixed(3)}`;
                         let widthPct = Math.max(5, (Math.abs(p.score) / highestScore) * 100);
                         if (p.isEliminated) widthPct = 0;
 
