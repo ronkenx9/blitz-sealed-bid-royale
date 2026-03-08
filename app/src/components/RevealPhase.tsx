@@ -19,6 +19,7 @@ export function RevealPhase({ setPhase }: RevealPhaseProps) {
     const wallet = useAnchorWallet();
     const [isLoading, setIsLoading] = useState(false);
     const [statusMsg, setStatusMsg] = useState<string | null>(null);
+    const [isResolved, setIsResolved] = useState(false);
 
     // ── AI MODE ──
     if (mode === 'ai') {
@@ -49,6 +50,7 @@ export function RevealPhase({ setPhase }: RevealPhaseProps) {
 
         const handleResolveAI = () => {
             aiGame.resolveRound();
+            setIsResolved(true);
         };
 
         const handleNextRound = () => {
@@ -141,10 +143,19 @@ export function RevealPhase({ setPhase }: RevealPhaseProps) {
                 </div>
 
                 <div className="reveal-action">
-                    <button className="btn btn-ghost" onClick={handleResolveAI}>
+                    <button
+                        className={`btn ${isResolved ? 'btn-ghost' : 'btn-primary btn-glow'}`}
+                        onClick={handleResolveAI}
+                        disabled={isResolved}
+                    >
                         ⚡ RESOLVE ROUND
                     </button>
-                    <button className="btn btn-primary btn-glow" onClick={handleNextRound}>
+                    <button
+                        className={`btn ${isResolved ? 'btn-primary btn-glow' : 'btn-ghost'}`}
+                        onClick={handleNextRound}
+                        disabled={!isResolved}
+                        style={!isResolved ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+                    >
                         {gameOver || currentRound >= totalRounds ? '👑 FINAL RESULTS →' : '▶ NEXT ROUND →'}
                     </button>
                 </div>
@@ -190,16 +201,20 @@ export function RevealPhase({ setPhase }: RevealPhaseProps) {
 
             setStatusMsg('✅ Round resolved!');
             await refetch();
-            if (game && (game.currentRound >= 5 || allPlayers.filter(p => !p.isEliminated).length <= 1)) {
-                setTimeout(() => setPhase('gameover'), 1500);
-            } else {
-                setTimeout(() => setPhase('bidding'), 1500);
-            }
+            setIsResolved(true); // Mark as resolved in UI
         } catch (e: any) {
             console.error(e);
             setStatusMsg(`❌ Error: ${e.message?.slice(0, 100)}`);
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const handleProceedPVP = () => {
+        if (game && (game.currentRound >= 5 || allPlayers.filter(p => !p.isEliminated).length <= 1)) {
+            setPhase('gameover');
+        } else {
+            setPhase('bidding');
         }
     };
 
@@ -267,9 +282,20 @@ export function RevealPhase({ setPhase }: RevealPhaseProps) {
             </div>
 
             <div className="reveal-action">
-                <button className="btn btn-ghost" onClick={() => setPhase('bidding')}>◀ BACK TO BIDDING</button>
-                <button className="btn btn-primary btn-glow" onClick={handleNextPhase} disabled={isLoading || !wallet}>
-                    {isLoading ? '⏳ RESOLVING...' : '▶ RESOLVE & CONTINUE →'}
+                <button
+                    className={`btn ${isResolved ? 'btn-ghost' : 'btn-primary btn-glow'}`}
+                    onClick={handleNextPhase}
+                    disabled={isLoading || !wallet || isResolved}
+                >
+                    {isLoading ? '⏳ RESOLVING...' : (isResolved ? '✅ ROUND RESOLVED' : '⚡ RESOLVE ROUND')}
+                </button>
+                <button
+                    className={`btn ${isResolved ? 'btn-primary btn-glow' : 'btn-ghost'}`}
+                    onClick={handleProceedPVP}
+                    disabled={!isResolved}
+                    style={!isResolved ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+                >
+                    {game && (game.currentRound >= 5 || allPlayers.filter(p => !p.isEliminated).length <= 1) ? '👑 FINAL RESULTS →' : '▶ NEXT ROUND →'}
                 </button>
             </div>
         </>
