@@ -10,6 +10,7 @@ import { Lobby } from './components/Lobby';
 import { BiddingRound } from './components/BiddingRound';
 import { RevealPhase } from './components/RevealPhase';
 import { GameOver } from './components/GameOver';
+import { Onboarding } from './components/Onboarding';
 import { useAIGame } from './hooks/useAIGame';
 
 const PHASE_ORDER = ['lobby', 'bidding', 'reveal', 'gameover'] as const;
@@ -91,7 +92,20 @@ function GameApp() {
   const [highestPhase, setHighestPhase] = useState<number>(0);
   const [mode, setMode] = useState<GameMode>('ai'); // Default to AI for instant play
   const [gameId, setGameId] = useState<number>(Date.now() % 1_000_000_000);
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const aiGame = useAIGame();
+
+  useEffect(() => {
+    const hasSeen = localStorage.getItem('blitz_onboarding_seen');
+    if (!hasSeen) {
+      setShowOnboarding(true);
+    }
+  }, []);
+
+  const handleCloseOnboarding = () => {
+    localStorage.setItem('blitz_onboarding_seen', 'true');
+    setShowOnboarding(false);
+  };
 
   const handleSetPhase = useCallback((newPhase: string) => {
     const idx = PHASE_ORDER.indexOf(newPhase as Phase);
@@ -200,6 +214,7 @@ function GameApp() {
         </div>
 
       </div>
+      {showOnboarding && <Onboarding onClose={handleCloseOnboarding} />}
     </GameModeContext.Provider>
   );
 }
