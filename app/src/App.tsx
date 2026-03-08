@@ -12,6 +12,7 @@ import { RevealPhase } from './components/RevealPhase';
 import { GameOver } from './components/GameOver';
 import { Onboarding } from './components/Onboarding';
 import { useAIGame } from './hooks/useAIGame';
+import { useBlitzGame } from './hooks/useBlitzGame';
 
 const PHASE_ORDER = ['lobby', 'bidding', 'reveal', 'gameover'] as const;
 type Phase = typeof PHASE_ORDER[number];
@@ -94,6 +95,7 @@ function GameApp() {
   const [gameId, setGameId] = useState<number>(Date.now() % 1_000_000_000);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const aiGame = useAIGame();
+  const pvpGame = useBlitzGame(mode === 'pvp' ? gameId.toString() : undefined);
 
   useEffect(() => {
     const hasSeen = localStorage.getItem('blitz_onboarding_seen');
