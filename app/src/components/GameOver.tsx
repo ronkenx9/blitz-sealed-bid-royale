@@ -6,9 +6,10 @@ import { useGameMode } from '../App';
 
 interface GameOverProps {
     setPhase: (phase: string) => void;
+    onLeaderboard: () => void;
 }
 
-export function GameOver({ setPhase }: GameOverProps) {
+export function GameOver({ setPhase, onLeaderboard }: GameOverProps) {
     const { mode, aiGame, gameId: GAME_ID_NUM } = useGameMode();
     const pvpGame = useBlitzGame(mode === 'pvp' ? GAME_ID_NUM.toString() : undefined);
     const { settleGame } = useBlitzActions(GAME_ID_NUM);
@@ -16,6 +17,32 @@ export function GameOver({ setPhase }: GameOverProps) {
     const [isSettling, setIsSettling] = useState(false);
     const [hasSettled, setHasSettled] = useState(false);
     const [statusMsg, setStatusMsg] = useState<string | null>(null);
+    const [hasSubmittedScore, setHasSubmittedScore] = useState(false);
+
+    // ── Score Submission (10/10 Hardened) ──
+    const submitScore = async (score: number, win: boolean) => {
+        if (!wallet || hasSubmittedScore) return;
+        try {
+            console.log('🛡️ Submitting hardened score to ledger...');
+            const response = await fetch('https://blitz-portal.vercel.app/api/game/complete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    walletAddress: wallet.publicKey.toBase58(),
+                    gameId: GAME_ID_NUM,
+                    xpDelta: score,
+                    didWin: win
+                })
+            });
+            const data = await response.json();
+            if (data.success) {
+                console.log('✅ Score recorded in blockchain-style ledger.');
+                setHasSubmittedScore(true);
+            }
+        } catch (e) {
+            console.error('❌ Failed to submit score:', e);
+        }
+    };
 
     // ── AI MODE ──
     if (mode === 'ai') {
@@ -29,6 +56,12 @@ export function GameOver({ setPhase }: GameOverProps) {
 
         const eliminatedCount = players.filter(p => p.isEliminated).length;
         const highestScore = Math.max(...players.map(p => Math.abs(p.score)), 1);
+
+        // Auto-submit AI score
+        const userPlayer = players.find(p => p.isYou);
+        if (userPlayer && !hasSubmittedScore) {
+            submitScore(userPlayer.score, !!winner?.isYou);
+        }
 
         const handlePlayAgain = () => {
             setHasSettled(false);
@@ -60,7 +93,7 @@ export function GameOver({ setPhase }: GameOverProps) {
                     </div>
                     <div className="stat-box">
                         <div className="stat-val" style={{ color: 'var(--green)' }}>
-                            {winner ? `${(winner.score / 1e9) > 0 ? '+' : ''}${(winner.score / 1e9).toFixed(3)}` : '—'}
+                            {winner ? `${winner.score > 0 ? '+' : ''}${winner.score.toLocaleString()}` : '—'}
                         </div>
                         <div className="stat-label">WINNER SCORE</div>
                     </div>
@@ -73,8 +106,8 @@ export function GameOver({ setPhase }: GameOverProps) {
                 <div className="section-title">⚔ FINAL STANDINGS</div>
                 <div className="final-scores">
                     {rankings.map((p, idx) => {
-                        const scoreVal = p.score / 1e9;
-                        const scoreStr = `${scoreVal > 0 ? '+' : ''}${scoreVal.toFixed(3)}`;
+                        const scoreVal = p.score;
+                        const scoreStr = `${scoreVal > 0 ? '+' : ''}${scoreVal.toLocaleString()}`;
                         let widthPct = Math.max(5, (Math.abs(p.score) / highestScore) * 100);
                         if (p.isEliminated) widthPct = 0;
 
@@ -97,9 +130,12 @@ export function GameOver({ setPhase }: GameOverProps) {
                     })}
                 </div>
 
-                <div style={{ textAlign: 'center', padding: '8px 0 28px' }}>
-                    <button className="btn btn-primary btn-glow" onClick={handlePlayAgain} style={{ marginTop: '8px' }}>
-                        🤖 PLAY AGAIN ⚔
+                <div style={{ textAlign: 'center', padding: '8px 0 28px', display: 'flex', justifyContent: 'center', gap: '12px' }}>
+                    <button className="btn btn-primary btn-glow" onClick={handlePlayAgain}>
+                        🤖 PLAY AGAIN
+                    </button>
+                    <button className="btn btn-secondary btn-glow" onClick={onLeaderboard} style={{ border: '2px solid var(--gold)', color: 'var(--gold)' }}>
+                        🏆 LEADERBOARD
                     </button>
                 </div>
             </>
@@ -142,6 +178,14 @@ export function GameOver({ setPhase }: GameOverProps) {
     const eliminatedCount = rankings.filter(p => p.isEliminated).length;
     const highestScore = Math.max(...allPlayers.map(p => Math.abs(p.score.toNumber())), 1);
     const totalPotSol = game.totalPot.toNumber() / 1e9;
+
+    // Auto-submit PvP score
+    if (wallet && !hasSubmittedScore && game.winner) {
+        const userStats = allPlayers.find(p => p.player.equals(wallet.publicKey));
+        if (userStats) {
+            submitScore(userStats.score.toNumber(), !!isWinner);
+        }
+    }
 
     return (
         <>
@@ -203,16 +247,19 @@ export function GameOver({ setPhase }: GameOverProps) {
                 })}
             </div>
 
-            <div style={{ textAlign: 'center', padding: '8px 0 28px' }}>
+            <div style={{ textAlign: 'center', padding: '8px 0 28px', display: 'flex', justifyContent: 'center', gap: '12px' }}>
                 {!hasSettled ? (
-                    <button className="btn btn-primary btn-glow" onClick={handleSettle} disabled={isSettling || !wallet} style={{ marginTop: '8px', background: 'var(--gold)', color: '#000' }}>
-                        {isSettling ? '⏳ SETTLING...' : '💰 SETTLE POT TO MAINNET 💰'}
+                    <button className="btn btn-primary btn-glow" onClick={handleSettle} disabled={isSettling || !wallet} style={{ background: 'var(--gold)', color: '#000' }}>
+                        {isSettling ? '⏳ SETTLING...' : '💰 SETTLE POT 💰'}
                     </button>
                 ) : (
-                    <button className="btn btn-primary btn-glow" onClick={() => setPhase('lobby')} style={{ marginTop: '8px' }}>
-                        ⚔ PLAY AGAIN ⚔
+                    <button className="btn btn-primary btn-glow" onClick={() => setPhase('lobby')}>
+                        ⚔ AGAIN
                     </button>
                 )}
+                <button className="btn btn-secondary btn-glow" onClick={onLeaderboard} style={{ border: '2px solid var(--purple)', color: 'var(--purple)' }}>
+                    🏆 LEGENDS
+                </button>
             </div>
         </>
     );

@@ -555,6 +555,122 @@ header {
   padding: 6px 12px;
 }
 
+/* ═══════════════════════════════════════════════════════════
+   LEADERBOARD (ARCADE STYLE)
+   ═══════════════════════════════════════════════════════════ */
+.leaderboard-container {
+  max-width: 600px;
+  margin: 40px auto;
+  padding: 24px;
+  background: rgba(10, 10, 20, 0.8);
+  border: 4px double var(--cyan);
+  box-shadow: 0 0 30px rgba(0, 255, 255, 0.1), inset 0 0 20px rgba(0, 255, 255, 0.05);
+  position: relative;
+  overflow: hidden;
+}
+
+.leaderboard-header {
+  text-align: center;
+  margin-bottom: 32px;
+  border-bottom: 2px solid var(--purple);
+  padding-bottom: 16px;
+}
+
+.leaderboard-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.leaderboard-entry {
+  display: flex;
+  align-items: center;
+  padding: 16px;
+  background: rgba(15, 23, 42, 0.9);
+  border: 1px solid var(--border);
+  transition: all 0.3s ease;
+}
+
+.leaderboard-entry:hover {
+  transform: scale(1.02) translateX(5px);
+  border-color: var(--cyan);
+  box-shadow: -5px 0 15px rgba(34, 211, 238, 0.3);
+}
+
+.leaderboard-entry.top-rank {
+  border-left: 4px solid var(--gold);
+  background: linear-gradient(90deg, rgba(232, 184, 75, 0.1) 0%, rgba(15, 23, 42, 0.9) 100%);
+}
+
+.rank-badge {
+  width: 50px;
+  font-family: var(--pixel);
+  font-size: 20px;
+  color: var(--gold);
+  text-shadow: 0 0 10px rgba(232, 184, 75, 0.5);
+}
+
+.player-info {
+  flex: 1;
+}
+
+.player-name {
+  font-family: var(--pixel);
+  font-size: 14px;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.rank-title {
+  font-family: var(--vt);
+  font-size: 14px;
+  color: var(--purple);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.score-info {
+  text-align: right;
+}
+
+.xp-val {
+  font-family: var(--pixel);
+  font-size: 18px;
+  color: var(--gold);
+  line-height: 1;
+}
+
+.xp-label {
+  font-family: var(--vt);
+  font-size: 10px;
+  color: var(--dim);
+  margin-top: 2px;
+}
+
+.loading-container {
+  height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pulsing-text {
+  font-family: var(--pixel);
+  font-size: 12px;
+  color: var(--cyan);
+  animation: pulse 1.5s infinite;
+}
+
+.leaderboard-footer {
+  margin-top: 32px;
+  text-align: center;
+  font-family: var(--pixel);
+  font-size: 8px;
+  color: var(--dim);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
 /* countdown */
 .countdown-wrap {
   text-align: center;

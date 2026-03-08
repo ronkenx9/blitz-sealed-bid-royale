@@ -11,10 +11,11 @@ import { BiddingRound } from './components/BiddingRound';
 import { RevealPhase } from './components/RevealPhase';
 import { GameOver } from './components/GameOver';
 import { Onboarding } from './components/Onboarding';
+import { Leaderboard } from './components/Leaderboard';
 import { useAIGame } from './hooks/useAIGame';
 import { useBlitzGame } from './hooks/useBlitzGame';
 
-const PHASE_ORDER = ['lobby', 'bidding', 'reveal', 'gameover'] as const;
+const PHASE_ORDER = ['lobby', 'bidding', 'reveal', 'gameover', 'leaderboard'] as const;
 type Phase = typeof PHASE_ORDER[number];
 
 // ── GAME MODE CONTEXT ──
@@ -140,6 +141,7 @@ function GameApp() {
     { key: 'bidding', step: 'PHASE II', icon: '🔮', label: 'BIDDING' },
     { key: 'reveal', step: 'PHASE III', icon: '👁', label: 'REVEAL' },
     { key: 'gameover', step: 'PHASE IV', icon: '👑', label: 'GAME OVER' },
+    { key: 'leaderboard', step: 'PHASE V', icon: '🏆', label: 'LEGENDS' }
   ];
 
   return (
@@ -182,19 +184,42 @@ function GameApp() {
         <nav className="nav-tabs">
           {phaseLabels.map((tab, idx) => {
             const currentIdx = PHASE_ORDER.indexOf(phase);
-            const isLocked = idx > highestPhase || (phase !== tab.key && idx < currentIdx); // Cannot go back to previous phases
-            const isActive = phase === tab.key;
+            const isGameActive = ['bidding', 'reveal'].includes(phase);
+            const isIdleTab = ['lobby', 'leaderboard'].includes(tab.key);
 
-            // Special case: During Reveal, Bidding is strictly locked
-            const forceDisable = (phase === 'reveal' && tab.key === 'bidding');
+            let isLocked = false;
+
+            if (isGameActive) {
+              // During a game round, lock idle navigation
+              if (isIdleTab) {
+                isLocked = true;
+              } else {
+                // Enforce linear flow for game phases
+                isLocked = idx > highestPhase || (phase !== tab.key && idx < currentIdx);
+              }
+            } else if (phase === 'gameover') {
+              // After game ends, but still in GameOver:
+              // Allow Leaderboard and Lobby, but lock active game phases
+              if (!isIdleTab && tab.key !== 'gameover') {
+                isLocked = true;
+              }
+            } else {
+              // IDLE (Lobby or Leaderboard)
+              // Lock game phases
+              if (!isIdleTab) {
+                isLocked = true;
+              }
+            }
+
+            const isActive = phase === tab.key;
 
             return (
               <button
                 key={tab.key}
-                className={`tab-btn ${isActive ? 'active' : ''} ${isLocked || forceDisable ? 'locked' : ''}`}
-                onClick={() => !(isLocked || forceDisable) && setPhase(tab.key as Phase)}
-                disabled={isLocked || forceDisable}
-                title={isLocked || forceDisable ? 'Navigation restricted during active round' : ''}
+                className={`tab-btn ${isActive ? 'active' : ''} ${isLocked ? 'locked' : ''}`}
+                onClick={() => !isLocked && setPhase(tab.key as Phase)}
+                disabled={isLocked}
+                title={isLocked ? 'Navigation restricted' : ''}
               >
                 <span className="tab-step">{tab.step}</span>
                 {isLocked ? '🔒' : tab.icon} {tab.label}
@@ -204,30 +229,29 @@ function GameApp() {
         </nav>
 
         {/* SCREENS */}
-        <div className={`screen ${phase === 'lobby' ? 'active' : ''}`}>
-          <Lobby setPhase={handleSetPhase} />
-        </div>
-
-        <div className={`screen ${phase === 'bidding' ? 'active' : ''}`}>
-          <BiddingRound
-            key={`bidding-${mode === 'ai' ? aiGame.currentRound : pvpGame.game?.currentRound || 0}`}
-            setPhase={handleSetPhase}
-            isActive={phase === 'bidding'}
-          />
-        </div>
-
-        <div className={`screen ${phase === 'reveal' ? 'active' : ''}`}>
-          <RevealPhase
-            key={`reveal-${mode === 'ai' ? aiGame.currentRound : pvpGame.game?.currentRound || 0}`}
-            setPhase={handleSetPhase}
-          />
-        </div>
-
-        <div className={`screen ${phase === 'gameover' ? 'active' : ''}`}>
-          <GameOver
-            key={`gameover-${mode === 'ai' ? aiGame.currentRound : pvpGame.game?.currentRound || 0}`}
-            setPhase={handleSetPhase}
-          />
+        <div className="screen-container">
+          {phase === 'lobby' && <Lobby setPhase={handleSetPhase} />}
+          {phase === 'bidding' && (
+            <BiddingRound
+              key={`bidding-${mode}-${mode === 'ai' ? aiGame.currentRound : pvpGame.game?.currentRound || 0}`}
+              setPhase={handleSetPhase}
+              isActive={phase === 'bidding'}
+            />
+          )}
+          {phase === 'reveal' && (
+            <RevealPhase
+              key={`reveal-${mode}-${mode === 'ai' ? aiGame.currentRound : pvpGame.game?.currentRound || 0}`}
+              setPhase={handleSetPhase}
+            />
+          )}
+          {phase === 'gameover' && (
+            <GameOver
+              key={`gameover-${mode}-${mode === 'ai' ? aiGame.currentRound : pvpGame.game?.currentRound || 0}`}
+              setPhase={handleSetPhase}
+              onLeaderboard={() => handleSetPhase('leaderboard')}
+            />
+          )}
+          {phase === 'leaderboard' && <Leaderboard />}
         </div>
 
       </div>

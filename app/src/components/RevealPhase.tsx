@@ -92,20 +92,30 @@ export function RevealPhase({ setPhase }: RevealPhaseProps) {
                             deltaStr = "— (outbid)";
                         }
 
-                        const scoreVal = p.score / 1e9;
-                        const scoreStr = `${scoreVal > 0 ? '+' : ''}${scoreVal.toFixed(3)}`;
+                        const scoreVal = p.score;
+                        const scoreStr = `${scoreVal > 0 ? '+' : ''}${scoreVal.toLocaleString()}`;
                         const scoreColor = scoreVal >= 0 ? 'var(--green)' : 'var(--crimson)';
+                        const isReckless = isWinner && p.currentBid / (trueValue * 1e9) > 1.2;
 
                         return (
                             <div key={p.name} className={`reveal-card ${isWinner ? 'winner' : ''} ${p.isYou ? 'you-card' : ''} ${p.isEliminated ? 'eliminated-card' : ''}`}>
                                 <span className="rc-avatar">{p.isEliminated ? '💀' : p.emoji}</span>
                                 <div className="rc-name">
-                                    {p.name} {p.isYou && <span style={{ color: 'var(--blue)', fontSize: '9px' }}>YOU</span>}
-                                </div>
-                                <div className="rc-bid-label">SEALED BID</div>
-                                <div className="rc-bid">◎ {bidAmount > 0 ? bidAmount.toFixed(3) : 'NONE'}</div>
-                                <div className={`rc-delta ${deltaClass}`} style={!isWinner ? { color: 'var(--dim)' } : {}}>
-                                    {p.isEliminated ? 'ELIMINATED' : deltaStr}
+                                    <div className="bid-reveal-name">{p.name} {p.isYou && <span style={{ color: 'var(--blue)', fontSize: '9px' }}>YOU</span>}</div>
+                                    <div className="bid-reveal-label">SEALED BID</div>
+                                    <div className="bid-reveal-val">◎ {(p.currentBid / 1e9).toFixed(3)}</div>
+                                    {isReckless && (
+                                        <div style={{
+                                            color: 'var(--crimson)',
+                                            fontFamily: 'var(--pixel)',
+                                            fontSize: '8px',
+                                            marginTop: '4px',
+                                            animation: 'pulse 1s infinite'
+                                        }}>⚠️ RECKLESS!</div>
+                                    )}
+                                    <div className="bid-reveal-delta" style={!isWinner ? { color: 'var(--dim)' } : { color: deltaClass === 'pos' ? 'var(--green)' : 'var(--crimson)' }}>
+                                        {p.isEliminated ? 'ELIMINATED' : deltaStr}
+                                    </div>
                                 </div>
                                 <div className="rc-score-label">TOTAL SCORE</div>
                                 <div className="rc-total" style={{ color: scoreColor }}>{scoreStr}</div>
@@ -118,8 +128,8 @@ export function RevealPhase({ setPhase }: RevealPhaseProps) {
                 <div className="section-title" style={{ marginTop: '32px' }}>⚔ STANDINGS</div>
                 <div style={{ maxWidth: '520px' }}>
                     {rankings.map((p, idx) => {
-                        const scoreVal = p.score / 1e9;
-                        const scoreStr = `${scoreVal > 0 ? '+' : ''}${scoreVal.toFixed(3)}`;
+                        const scoreVal = p.score;
+                        const scoreStr = `${scoreVal > 0 ? '+' : ''}${scoreVal.toLocaleString()}`;
                         let widthPct = Math.max(5, (Math.abs(p.score) / highestScore) * 100);
                         if (p.isEliminated) widthPct = 0;
 

@@ -207,18 +207,69 @@ export function useAIGame() {
             }
         }
 
-        // Apply Winner's Curse to the winner (SOL based)
-        if (highestIdx >= 0) {
-            const delta = tv - highestBid; // Can be negative (penalty)
-            updated[highestIdx] = {
-                ...updated[highestIdx],
-                score: updated[highestIdx].score + delta,
+        const startingPlayers = 6;
+        const playersAlive = updated.filter(p => !p.isEliminated).length;
+
+        // Calculation for all active players
+        for (let i = 0; i < updated.length; i++) {
+            if (updated[i].isEliminated) continue;
+
+            const p = updated[i];
+            let roundScore = 0;
+            const bidRatio = p.currentBid / tv;
+            const didWin = (i === highestIdx);
+
+            // 1. ACCURACY POINTS (0-5000 for winners, 0-3000 for losers)
+            if (bidRatio < 0.5 && p.currentBid > 0) {
+                // Anti-farming rule: 0 pts for tiny bids
+                roundScore += 0;
+            } else if (p.currentBid === 0) {
+                // Penalty for no bid
+                roundScore -= 2000;
+            } else {
+                const accuracy = 1 - Math.abs(tv - p.currentBid) / tv;
+                const baseAccuracy = Math.floor(accuracy * 5000);
+
+                if (didWin) {
+                    if (bidRatio > 1.2) {
+                        // Reckless cliff: 0 accuracy points
+                        roundScore += 0;
+                    } else {
+                        roundScore += baseAccuracy;
+                    }
+                } else {
+                    // Loser cap
+                    roundScore += Math.min(baseAccuracy, 3000);
+                }
+            }
+
+            // 2. SCALED KILL BONUS (10,000 base)
+            if (didWin) {
+                const killMultiplier = startingPlayers / playersAlive;
+                let killBonus = 10000 * killMultiplier;
+
+                // Reckless Penalty: Half kill bonus if overbid > 20%
+                if (bidRatio > 1.2) {
+                    killBonus *= 0.5;
+                }
+
+                roundScore += Math.floor(killBonus);
+
+                // 3. PROFIT MULTIPLIER (2x if smart win)
+                if (p.currentBid < tv) {
+                    roundScore *= 2;
+                }
+            }
+
+            updated[i] = {
+                ...p,
+                score: p.score + roundScore
             };
         }
 
         // Find lowest score among non-eliminated
-        const activePlayers = updated.filter(p => !p.isEliminated);
-        if (activePlayers.length > 1) {
+        const activePlayersAfter = updated.filter(p => !p.isEliminated);
+        if (activePlayersAfter.length > 1) {
             let lowestScore = Infinity;
             let lowestIdx = -1;
 
